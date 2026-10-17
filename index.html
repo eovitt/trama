@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Segurança: só carrega scripts, estilos e conexões de origens conhecidas -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js 'sha256-YFoKnNXcUIuzRYKpGCl5xmfU1jHFLXpnI/nX1U3NmI4='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://kyimrrtaqwkyarbdifzb.supabase.co wss://kyimrrtaqwkyarbdifzb.supabase.co https://api.pwnedpasswords.com; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'self'; manifest-src 'self'">
+    <meta name="referrer" content="no-referrer">
+    <meta name="description" content="Trama — seu diário de leitura.">
+    <meta name="theme-color" content="#efe3c6">
+    <title>Trama</title>
+
+    <!-- Aplica o tema salvo antes de desenhar a página (evita "piscar" claro → escuro) -->
+    <script>
+        (function () {
+            try {
+                var p = JSON.parse(localStorage.getItem("trama.prefs") || "{}");
+                var theme = p.theme || "light";
+                if (theme === "system") theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+                document.documentElement.dataset.theme = theme;
+                if (p.reduceMotion) document.documentElement.dataset.motion = "reduce";
+            } catch (e) {}
+        })();
+    </script>
+
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="favicon-180.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Ícones SVG reutilizáveis -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 3v18M17 3v18M3 8h4M3 12h4M3 16h4M17 8h4M17 12h4M17 16h4"/>
+    </symbol>
+    <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 6.5C10.3 5 7.8 4.5 4 4.5v13c3.8 0 6.3.5 8 2 1.7-1.5 4.2-2 8-2v-13c-3.8 0-6.3.5-8 2Z"/><path d="M12 6.5v13"/>
+    </symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+    </symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>
+    </symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+    </symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 3a9 9 0 0 1 0 18" fill="currentColor" fill-opacity=".2"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3Z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4.5" height="14" rx="1.2"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.2"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15" width="7" height="5.5" rx="1.5"/><rect x="13.5" y="15" width="7" height="5.5" rx="1.5"/></symbol>
+    <symbol id="i-ticket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4V8Z"/><path d="M15 6v2M15 11v2M15 16v2"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-focus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 6.1A10 10 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3 3.6M6.6 7.6C3.8 9.4 2 12 2 12s3.5 6 10 6a9.6 9.6 0 0 0 4.4-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7Z"/><path d="M19 3v3M17.5 4.5h3"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-2.5 4-2.5 5.5C10 9.5 9 8 9 6.5 7 8.5 6 11.5 6 15a6 6 0 0 0 6 6Z"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M5 12v6.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V12"/></symbol>
+    <symbol id="i-tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="m8.5 2.5 3.5 3.5 3.5-3.5M8 22h8"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8L12 2.8Z"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24" fill="currentColor"><path d="M4 18v-5c0-4 2-6.5 6-7.5l.6 1.8C8.3 8 7.3 9.4 7.2 11H10v7H4Zm10 0v-5c0-4 2-6.5 6-7.5l.6 1.8c-2.3.7-3.3 2.1-3.4 3.7H20v7h-6Z"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4V3Z"/></symbol>
+</svg>
+
+<!-- =====================================================
+     LOGIN / CADASTRO / REDEFINIR SENHA
+===================================================== -->
+<div id="loginScreen" class="login-screen">
+
+    <!-- Palco animado: os "fios" da trama -->
+    <section class="login-stage" aria-hidden="true">
+        <canvas id="loginThreads" class="login-threads"></canvas>
+        <div class="stage-glow"></div>
+
+        <div class="stage-inner">
+            <div class="logo stage-logo"><img src="favicon.svg" class="logo-mark" alt=""><span>Trama</span></div>
+
+            <div class="stage-copy">
+                <p class="stage-kicker" data-i18n="stage.kicker">LIVROS · PÁGINAS · SUA HISTÓRIA</p>
+                <h2 class="stage-title" data-i18n-html="stage.title">Cada página, <br>cada capítulo, <br><span>um fio da sua trama.</span></h2>
+                <p class="stage-tagline" id="stageTagline"></p>
+            </div>
+
+            <div class="stage-cards">
+                <div class="float-card fc-quote">
+                    <span class="fc-mark">“</span>
+                    <div>
+                        <small data-i18n="stage.fc.quoteLabel">CITAÇÃO SALVA</small>
+                        <strong data-i18n="stage.fc.quote">Ler é sonhar pela mão de outrem.</strong>
+                        <em>— Fernando Pessoa</em>
+                    </div>
+                </div>
+
+                <div class="float-card fc-book">
+                    <span class="fc-cover"></span>
+                    <div>
+                        <small data-i18n="stage.fc.readingNow">LENDO AGORA</small>
+                        <strong class="fc-timer" id="stageTimer">24:13</strong>
+                        <span class="fc-progress"><i></i></span>
+                        <span class="fc-page" data-i18n="stage.fc.page">Pág. 188 de 412</span>
+                    </div>
+                </div>
+
+                <div class="float-card fc-ring">
+                    <svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="18"/><circle cx="22" cy="22" r="18" class="fc-ring-val"/></svg>
+                    <div><small data-i18n="stage.fc.challenge">DESAFIO DO ANO</small><strong data-i18n="stage.fc.challengeVal">7 de 12 livros</strong></div>
+                </div>
+
+                <div class="float-card fc-heat">
+                    <small data-i18n="hm.title">Seu ano de leitura</small>
+                    <div class="fc-heat-grid" id="stageHeat"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Formulários -->
+    <section class="login-panel">
+        <div class="login-box">
+            <div class="login-top">
+                <div class="logo login-logo"><img src="favicon.svg" class="logo-mark" alt="" aria-hidden="true"><span>Trama</span></div>
+
+                <div class="lang-switch" role="group" aria-label="Idioma / Language">
+                    <button type="button" data-lang="pt">PT</button>
+                    <button type="button" data-lang="en">EN</button>
+                    <button type="button" data-lang="es">ES</button>
+                </div>
+            </div>
+
+            <div class="auth-tabs" role="tablist" id="authTabs">
+                <span class="auth-tabs-pill" aria-hidden="true"></span>
+                <button type="button" class="auth-tab active" id="showLoginTab" role="tab" aria-selected="true" data-i18n="tab.login">Entrar</button>
+                <button type="button" class="auth-tab" id="showSignupTab" role="tab" aria-selected="false" data-i18n="tab.signup">Criar conta</button>
+            </div>
+
+            <p class="eyebrow" id="loginEyebrow">FILMES & LIVROS</p>
+            <h1 id="loginHeading">Toda história<br>tem sua trama.</h1>
+            <p class="login-description" id="loginDescription">Guarde os filmes que marcaram você e acompanhe seu ritmo de leitura, tudo em um só lugar.</p>
+
+            <form id="loginForm" novalidate>
+                <label id="emailFieldLabel">
+                    <span data-i18n="field.email">E-mail</span>
+                    <span class="input-wrap">
+                        <svg class="input-icon" aria-hidden="true"><use href="#i-mail"/></svg>
+                        <input type="email" id="loginEmail" required autocomplete="email" maxlength="254" data-i18n-placeholder="ph.email" placeholder="seu@email.com">
+                    </span>
+                </label>
+
+                <label id="passwordFieldLabel">
+                    <span data-i18n="field.password">Senha</span>
+                    <span class="input-wrap">
+                        <svg class="input-icon" aria-hidden="true"><use href="#i-lock"/></svg>
+                        <input type="password" id="loginPassword" required autocomplete="current-password" maxlength="72" placeholder="••••••••">
+                        <button type="button" class="pw-toggle" data-pw-toggle data-i18n-aria="pw.show" data-i18n-title="pw.show"><svg><use href="#i-eye"/></svg></button>
+                    </span>
+                </label>
+                <p class="caps-warning hidden" id="loginCaps" role="status"><svg><use href="#i-alert"/></svg><span data-i18n="caps.on">Caps Lock está ativado</span></p>
+
+                <div id="passwordStrength" class="password-strength hidden">
+                    <div class="password-strength-bar"><div id="passwordStrengthFill" class="password-strength-fill"></div></div>
+                    <span id="passwordStrengthLabel" class="password-strength-label"></span>
+                </div>
+
+                <label id="confirmPasswordLabel" class="hidden">
+                    <span data-i18n="field.confirmPassword">Confirmar senha</span>
+                    <span class="input-wrap">
+                        <svg class="input-icon" aria-hidden="true"><use href="#i-lock"/></svg>
+                        <input type="password" id="loginConfirmPassword" autocomplete="new-password" maxlength="72" placeholder="••••••••">
+                        <button type="button" class="pw-toggle" data-pw-toggle data-i18n-aria="pw.show" data-i18n-title="pw.show"><svg><use href="#i-eye"/></svg></button>
+                    </span>
+                </label>
+
+                <div class="login-links" id="loginLinks">
+                    <button type="button" id="forgotPasswordLink" class="link-button" data-i18n="login.forgot">Esqueci minha senha</button>
+                    <button type="button" id="magicLinkLink" class="link-button" data-i18n="magic.link">Entrar com link por e-mail</button>
+                </div>
+
+                <button type="submit" class="primary-button login-submit" id="loginButton">Entrar</button>
+            </form>
+
+            <form id="forgotPasswordForm" class="hidden" novalidate>
+                <label>
+                    <span data-i18n="field.accountEmail">E-mail da sua conta</span>
+                    <span class="input-wrap">
+                        <svg class="input-icon" aria-hidden="true"><use href="#i-mail"/></svg>
+                        <input type="email" id="forgotEmail" required autocomplete="email" maxlength="254" data-i18n-placeholder="ph.email" placeholder="seu@email.com">
+                    </span>
+                </label>
+
+                <button type="submit" class="primary-button login-submit" id="forgotPasswordButton" data-i18n="btn.sendLink">Enviar link de redefinição</button>
+                <button type="button" id="backToLoginLink" class="link-button center" data-i18n="btn.back">← Voltar para o login</button>
+            </form>
+
+            <form id="magicLinkForm" class="hidden" novalidate>
+                <label>
+                    <span data-i18n="field.accountEmail">E-mail da sua conta</span>
+                    <span class="input-wrap">
+                        <svg class="input-icon" aria-hidden="true"><use href="#i-mail"/></svg>
+                        <input type="email" id="magicEmail" required autocomplete="email" maxlength="254" data-i18n-placeholder="ph.email" placeholder="seu@email.com">
+                    </span>
+                </label>
+
+                <button type="submit" class="primary-button login-submit" id="magicLinkButton" data-i18n="magic.send">Enviar link de acesso</button>
+                <button type="button" id="magicBackLink" class="link-button center" data-i18n="btn.back">← Voltar para o login</button>
+            </form>
+
+            <form id="resetPasswordForm" class="hidden" novalidate>
+                <label>
+                    <span data-i18n="field.newPassword">Nova senha</span>
+                    <span class="input-wrap">
+                        <svg class="input-icon" aria-hidden="true"><use href="#i-lock"/></svg>
+                        <input type="password" id="resetNewPassword" required autocomplete="new-password" maxlength="72" placeholder="••••••••">
+                        <button type="button" class="pw-toggle" data-pw-toggle data-i18n-aria="pw.show" data-i18n-title="pw.show"><svg><use href="#i-eye"/></svg></button>
+                    </span>
+                </label>
+
+                <div id="resetPasswordStrength" class="password-strength hidden">
+                    <div class="password-strength-bar"><div id="resetPasswordStrengthFill" class="password-strength-fill"></div></div>
+                    <span id="resetPasswordStrengthLabel" class="password-strength-label"></span>
+                </div>
+
+                <label>
+                    <span data-i18n="field.confirmNewPassword">Confirmar nova senha</span>
+                    <span class="input-wrap">
+                        <svg class="input-icon" aria-hidden="true"><use href="#i-lock"/></svg>
+                        <input type="password" id="resetConfirmPassword" required autocomplete="new-password" maxlength="72" placeholder="••••••••">
+                        <button type="button" class="pw-toggle" data-pw-toggle data-i18n-aria="pw.show" data-i18n-title="pw.show"><svg><use href="#i-eye"/></svg></button>
+                    </span>
+                </label>
+
+                <button type="submit" class="primary-button login-submit" id="resetPasswordButton" data-i18n="btn.savePassword">Salvar nova senha</button>
+            </form>
+
+            <p id="loginInfo" class="info-message" role="status"></p>
+            <p id="loginError" class="error-message" role="alert"></p>
+
+            <p class="secure-note"><svg><use href="#i-shield"/></svg><span data-i18n="secure.note">Conexão criptografada · cada conta só enxerga os próprios dados</span></p>
+        </div>
+    </section>
+</div>
+
+<!-- =====================================================
+     APLICAÇÃO
+===================================================== -->
+<div id="app" class="app-shell hidden">
+
+    <aside class="sidebar" aria-label="Navegação principal">
+        <img src="favicon.svg" class="sidebar-logo" alt="Trama">
+
+        <nav class="sidebar-nav">
+            <button class="nav-button active" data-page="livrosPage" data-i18n-aria="nav.books">
+                <svg class="nav-icon"><use href="#i-book"/></svg>
+                <span class="nav-tooltip" data-i18n="nav.books">Livros</span>
+            </button>
+            <button class="nav-button" data-page="statsPage" data-i18n-aria="nav.stats">
+                <svg class="nav-icon"><use href="#i-chart"/></svg>
+                <span class="nav-tooltip" data-i18n="nav.stats">Estatísticas</span>
+            </button>
+            <button class="nav-button" data-page="achievementsPage" data-i18n-aria="nav.achievements">
+                <svg class="nav-icon"><use href="#i-trophy"/></svg>
+                <span class="nav-dot hidden" id="achNavDot" aria-hidden="true"></span>
+                <span class="nav-tooltip" data-i18n="nav.achievements">Conquistas</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <button id="sidebarSettingsButton" class="nav-button" data-i18n-aria="nav.settings">
+                <svg class="nav-icon"><use href="#i-settings"/></svg>
+                <span class="nav-tooltip" data-i18n="nav.settings">Configurações</span>
+            </button>
+            <button id="logoutButton" class="nav-button nav-danger" data-i18n-aria="nav.logout">
+                <svg class="nav-icon"><use href="#i-logout"/></svg>
+                <span class="nav-tooltip" data-i18n="nav.logout">Sair</span>
+            </button>
+        </div>
+    </aside>
+
+    <div class="main-area">
+
+        <header class="topbar">
+            <div>
+                <p class="topbar-greeting" id="greetingText">Olá</p>
+                <p class="topbar-date" id="todayDate"></p>
+            </div>
+
+            <div class="topbar-right">
+                <button id="topbarSession" class="topbar-session hidden" type="button"></button>
+            <button id="accountSettingsButton" class="avatar-button" data-i18n-aria="nav.settings" data-i18n-title="nav.settings">
+                <span id="avatarInitial">?</span>
+            </button>
+            </div>
+        </header>
+
+        <main>
+
+
+
+        <section class="hero stage-hero" id="bookHero">
+            <canvas class="hero-threads" aria-hidden="true"></canvas>
+            <div class="hero-content">
+                <p class="eyebrow" data-i18n="books.eyebrow">PAINEL DE LEITURA</p>
+                <h1 data-i18n-html="books.heroTitle">Seu ritmo de<br><span>leitura.</span></h1>
+                <div class="readouts">
+                    <div><strong id="heroBookStreak">0</strong><span data-i18n="label.daysInRow">Dias seguidos</span></div>
+                    <div><strong id="heroBookPages">0</strong><span data-i18n="label.pagesLogged">Páginas registradas</span></div>
+                    <div><strong id="heroBookActive">0</strong><span data-i18n="label.inProgress">Em andamento</span></div>
+                    <button type="button" class="readout-button" id="heroChallenge" data-action="challenge-edit"></button>
+                </div>
+            </div>
+            <div class="hero-aside">
+                <!-- Sessão de leitura em andamento -->
+                <div id="activeSessionBar" class="active-session-bar hidden" aria-live="polite"></div>
+                <div id="heroNext" class="hero-next hidden"></div>
+            </div>
+        </section>
+
+        <section class="hero stage-hero hidden" id="achievementsHero">
+            <canvas class="hero-threads" aria-hidden="true"></canvas>
+            <div class="hero-content">
+                <p class="eyebrow" data-i18n="ach.eyebrow">CONQUISTAS</p>
+                <h1 data-i18n-html="ach.heroTitle">Seus marcos,<br><span>sua trajetória.</span></h1>
+                <div class="readouts">
+                    <div><strong id="achTotal">0</strong><span data-i18n="ach.levels">Níveis conquistados</span><i class="readout-bar"><b id="achBar"></b></i></div>
+                </div>
+                <div class="tier-counts" id="achTierCounts"></div>
+            </div>
+            <div class="hero-aside">
+                <div class="hero-next" id="achNext"></div>
+            </div>
+        </section>
+
+        <section class="hero stage-hero hidden" id="statsHero">
+            <canvas class="hero-threads" aria-hidden="true"></canvas>
+            <div class="hero-content">
+                <p class="eyebrow" data-i18n="stats.eyebrow">VISÃO GERAL</p>
+                <h1 data-i18n-html="stats.heroTitle">Seus números,<br><span>sua história.</span></h1>
+                <div class="readouts">
+                    <div><strong id="heroStatBooks">0</strong><span data-i18n="set.id.read">Lidos</span></div>
+                    <div><strong id="heroStatPages">0</strong><span data-i18n="label.pagesLogged">Páginas registradas</span></div>
+                    <div><strong id="heroStatTime">0h</strong><span data-i18n="label.totalTime">Tempo total lido</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LIVROS — BIBLIOTECA -->
+        <section id="livrosPage" class="page">
+            <!-- Aviso quando o banco ainda não foi atualizado -->
+            <div id="librarySchemaNotice" class="notice notice-warning hidden" role="alert">
+                <strong data-i18n="lib.schema.title">Falta atualizar o banco de dados</strong>
+                <p data-i18n="lib.schema.desc">Rode o arquivo atualizacao-biblioteca.sql no SQL Editor do Supabase e recarregue a página.</p>
+            </div>
+
+            <div class="toolbar lib-toolbar">
+                <div class="library-tabs" role="tablist" id="libraryTabs">
+                    <span class="tab-indicator" aria-hidden="true"></span>
+                    <button type="button" role="tab" class="library-tab active" data-tab="reading"><span data-i18n="lib.tab.reading">Em andamento</span><span class="tab-count" id="countReading">0</span></button>
+                    <button type="button" role="tab" class="library-tab" data-tab="want"><span data-i18n="lib.tab.want">Quero ler</span><span class="tab-count" id="countWant">0</span></button>
+                    <button type="button" role="tab" class="library-tab" data-tab="paused"><span data-i18n="lib.tab.paused">Pausados</span><span class="tab-count" id="countPaused">0</span></button>
+                    <button type="button" role="tab" class="library-tab" data-tab="finished"><span data-i18n="lib.tab.finished">Concluídos</span><span class="tab-count" id="countFinished">0</span></button>
+                    <button type="button" role="tab" class="library-tab" data-tab="all"><span data-i18n="lib.tab.all">Todos</span><span class="tab-count" id="countAll">0</span></button>
+                </div>
+
+                <div class="toolbar-actions libbar-actions">
+                    <div class="search-box">
+                        <svg class="search-icon" aria-hidden="true"><use href="#i-search"/></svg>
+                        <input type="search" id="librarySearch" data-i18n-placeholder="lib.search" data-i18n-aria="lib.search" autocomplete="off">
+                    </div>
+
+                    <div class="filter-wrap">
+                        <button type="button" class="filter-button" id="bookFilterButton" aria-expanded="false" aria-controls="bookFilterPop">
+                            <svg><use href="#i-sliders"/></svg><span data-i18n="filter.title">Filtros</span><span class="filter-count hidden" id="bookFilterCount"></span>
+                        </button>
+                        <div class="filter-pop hidden" id="bookFilterPop" role="dialog" data-i18n-aria="filter.title">
+                            <div class="pop-field"><span data-i18n="lib.view.label">Visualização</span>
+                                <div class="view-toggle pop-view" role="group" data-i18n-aria="lib.view.label">
+                                    <button type="button" data-view="cards" data-i18n-aria="lib.view.cards" data-i18n-title="lib.view.cards"><svg><use href="#i-list"/></svg><span data-i18n="lib.view.cardsShort">Lista</span></button>
+                                    <button type="button" data-view="grid" data-i18n-aria="lib.view.grid" data-i18n-title="lib.view.grid"><svg><use href="#i-grid"/></svg><span data-i18n="lib.view.gridShort">Estante</span></button>
+                                </div>
+                            </div>
+                            <label><span data-i18n="sort.label">Ordenar</span>
+                                <select id="librarySort" data-i18n-aria="lib.sort.label">
+                                    <option value="default" data-i18n="lib.sort.default">Ordem sugerida</option>
+                                    <option value="added" data-i18n="lib.sort.added">Data de adição</option>
+                                    <option value="title" data-i18n="lib.sort.title">Título</option>
+                                    <option value="author" data-i18n="lib.sort.author">Autor</option>
+                                    <option value="progress" data-i18n="lib.sort.progress">Progresso</option>
+                                    <option value="finished" data-i18n="lib.sort.finished">Data de conclusão</option>
+                                    <option value="priority" data-i18n="lib.sort.priority">Prioridade</option>
+                                </select>
+                            </label>
+                            <label><span data-i18n="field.genre">Gênero</span>
+                                <select id="libraryGenre" data-i18n-aria="lib.filter.genre">
+                                    <option value="all" data-i18n="filter.allGenres">Todos os gêneros</option>
+                                </select>
+                            </label>
+                            <label><span data-i18n="filter.rating">Nota</span>
+                                <select id="libraryRating" data-i18n-aria="lib.filter.rating">
+                                    <option value="all" data-i18n="lib.filter.anyRating">Qualquer avaliação</option>
+                                    <option value="5">★★★★★</option>
+                                    <option value="4">★★★★ +</option>
+                                    <option value="3">★★★ +</option>
+                                    <option value="2">★★ +</option>
+                                    <option value="1">★ +</option>
+                                    <option value="none" data-i18n="lib.filter.unrated">Sem avaliação</option>
+                                </select>
+                            </label>
+                            <button type="button" class="link-button" data-action="clear-filters" data-i18n="filter.clear">Limpar</button>
+                        </div>
+                    </div>
+
+                    <button id="addBookButton" class="add-button">
+                        <svg class="btn-icon"><use href="#i-plus"/></svg> <span data-i18n="books.add">Livro</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="libraryList" class="library-list" aria-live="polite"></div>
+
+        </section>
+
+        <!-- CONQUISTAS -->
+        <section id="achievementsPage" class="page hidden">
+            <div class="toolbar">
+                <div class="segmented ach-filter" id="achFilter" role="group" data-i18n-aria="ach.filter">
+                    <button type="button" data-filter="all" data-i18n="ach.all">Todas</button>
+                    <button type="button" data-filter="unlocked" data-i18n="ach.filter.unlocked">Conquistadas</button>
+                    <button type="button" data-filter="locked" data-i18n="ach.filter.locked">A conquistar</button>
+                </div>
+            </div>
+            <div id="achGrid" class="ach-grid"></div>
+        </section>
+
+        <!-- ESTATÍSTICAS -->
+        <section id="statsPage" class="page hidden">
+
+            <div class="stats-block library-summary">
+                <div class="stats-block-title with-filter">
+                    <span class="stats-block-icon"><svg><use href="#i-book"/></svg></span>
+                    <h2 data-i18n="stats.reading">Leitura</h2>
+                    <div class="segmented small" id="summaryPeriod">
+                        <button type="button" data-period="7" data-i18n="lib.period.7">7 dias</button>
+                        <button type="button" data-period="30" data-i18n="lib.period.30">30 dias</button>
+                        <button type="button" data-period="year" data-i18n="lib.period.year">Este ano</button>
+                        <button type="button" data-period="all" data-i18n="lib.period.all">Tudo</button>
+                    </div>
+                </div>
+
+                <div id="libraryStatusRow" class="status-row"></div>
+                <div id="librarySummary" class="kpi-board"></div>
+
+                <!-- Desafio de leitura do ano -->
+                <div id="readingChallenge" class="challenge hidden"></div>
+
+                <div class="panel-row">
+                    <div class="panel">
+                        <div class="stats-section-title">
+                            <div><p class="eyebrow" data-i18n="stats.last14">ÚLTIMOS 14 DIAS</p><h3 data-i18n="stats.pagesPerDay">Páginas lidas por dia</h3></div>
+                        </div>
+                        <div id="readingChart" class="reading-chart"></div>
+                    </div>
+                    <div class="panel">
+                        <div class="stats-section-title">
+                            <div><p class="eyebrow" data-i18n="stats.last12">ÚLTIMOS 12 MESES</p><h3 data-i18n="lib.summary.finishedByMonth">Livros concluídos por mês</h3></div>
+                        </div>
+                        <div id="finishedChart" class="reading-chart months"></div>
+                    </div>
+                </div>
+
+                <div class="panel heatmap-panel">
+                    <div class="stats-section-title">
+                        <div><p class="eyebrow" data-i18n="stats.last12">ÚLTIMOS 12 MESES</p><h3 data-i18n="hm.title">Seu ano de leitura</h3></div>
+                        <span id="heatmapSummary" class="heatmap-summary"></span>
+                    </div>
+                    <div id="readingHeatmap" class="heatmap"></div>
+                </div>
+            </div>
+
+        </section>
+
+        </main>
+    </div>
+</div>
+
+
+
+<!-- =====================================================
+     MODAL — LIVRO (adicionar / editar)
+===================================================== -->
+<div id="bookModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bookModalTitle">
+    <div class="modal book-form-modal bf2">
+        <button id="closeBookModal" class="close-button" type="button" data-i18n-aria="close">×</button>
+
+        <form id="bookForm" class="bf2-form" novalidate>
+            <!-- O livro vai se montando enquanto você preenche -->
+            <div class="bf2-stage">
+                <label for="bookCoverFile" class="bk3d" id="bookPreview" data-i18n-title="bf.coverHint">
+                    <span class="bk3d-pages"></span>
+                    <span class="bk3d-spine"><i></i><i></i></span>
+                    <span class="bk3d-cover">
+                        <span id="bookCoverPreviewWrapper" class="bk3d-img hidden"><img id="bookCoverPreview" alt=""></span>
+                        <span class="bk3d-frame"></span>
+                        <strong id="bkPrevTitle"></strong>
+                        <span class="bk3d-rule"></span>
+                        <em id="bkPrevAuthor"></em>
+                        <span class="bk3d-hint"><svg aria-hidden="true"><use href="#i-plus"/></svg><span id="bookCoverUploadText">Capa</span></span>
+                    </span>
+                    <span class="bk3d-ribbon"></span>
+                </label>
+                <span class="bk3d-floor" aria-hidden="true"></span>
+                <input type="file" id="bookCoverFile" accept="image/png, image/jpeg, image/webp, image/gif" class="sr-only">
+                <button type="button" id="removeBookCoverButton" class="bk3d-remove" data-i18n="upload.removeCoverShort">Remover capa</button>
+                <p class="bk3d-forecast" id="bookForecast" aria-live="polite"></p>
+            </div>
+
+            <div class="bf2-fields">
+                <p id="bookModalEyebrow" class="eyebrow">NOVO LIVRO</p>
+                <h2 id="bookModalTitle" class="sr-only">Adicionar livro</h2>
+
+                <input type="text" id="bookTitle" class="bf2-title" maxlength="300" data-i18n-placeholder="bf.titlePh" data-i18n-aria="field.title" autocomplete="off">
+                <input type="text" id="bookAuthor" class="bf2-author" maxlength="150" data-i18n-placeholder="bf.authorPh" data-i18n-aria="field.author" autocomplete="off">
+
+                <div class="bf2-genre">
+                    <input type="text" id="bookGenre" maxlength="80" list="bookGenreList" data-i18n-placeholder="field.genre" data-i18n-aria="field.genre" autocomplete="off">
+                    <datalist id="bookGenreList"></datalist>
+                    <div class="bf2-chips" id="bookGenreChips"></div>
+                </div>
+
+                <div class="bf2-sentences">
+                    <p class="bf2-line" id="bookPagesLine">
+                        <span data-i18n="bf.has">Tem</span>
+                        <input type="number" id="bookTotalPages" class="inl" min="1" max="100000" inputmode="numeric" placeholder="—" data-i18n-aria="field.totalPages">
+                        <span data-i18n="bf.pages">páginas</span><span id="bookCurrentPageField"> <span data-i18n="bf.andAt">e estou na</span>
+                        <input type="number" id="bookCurrentPage" class="inl" min="0" max="100000" inputmode="numeric" placeholder="0" data-i18n-aria="field.currentPage"></span>.
+                    </p>
+                    <p class="bf2-line" id="bookDatesRow">
+                        <span id="bookStartedField"><span data-i18n="bf.started">Comecei em</span>
+                        <input type="date" id="bookStartedAt" class="inl date" data-i18n-aria="lib.field.startedAt"></span><span id="bookFinishedField" class="hidden"> <span data-i18n="bf.finished">e terminei em</span>
+                        <input type="date" id="bookFinishedAt" class="inl date" data-i18n-aria="lib.field.finishedAt"></span>.
+                    </p>
+                    <p class="bf2-line" id="bookGoalField">
+                        <span data-i18n="bf.want">Quero ler</span>
+                        <input type="number" id="bookDailyGoal" class="inl" min="1" max="5000" inputmode="numeric" placeholder="—" data-i18n-aria="lib.field.goal">
+                        <span class="bf2-toggle" id="bookGoalType" role="group" data-i18n-aria="lib.field.goal">
+                            <button type="button" data-goal-type="pages" data-i18n="lib.goal.pages">páginas</button><button type="button" data-goal-type="minutes" data-i18n="lib.goal.minutes">minutos</button>
+                        </span>
+                        <span data-i18n="bf.perDay">por dia</span>.
+                    </p>
+                    <div class="bf2-line" id="bookPriorityField">
+                        <span data-i18n="bf.priority">Prioridade</span>
+                        <span class="bf2-toggle" id="bookPriority">
+                            <button type="button" data-priority="1" data-i18n="lib.priority.1">Alta</button><button type="button" data-priority="2" data-i18n="lib.priority.2">Média</button><button type="button" data-priority="3" data-i18n="lib.priority.3">Baixa</button>
+                        </span>
+                    </div>
+                </div>
+                <input type="hidden" id="bookStatus" value="reading">
+
+                <p id="bookFormError" class="error-message" role="alert"></p>
+                <button type="submit" class="primary-button bf2-save" id="saveBookButton">Salvar livro</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL — DETALHES E DIÁRIO DO LIVRO -->
+<div id="bookDetailsModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal book-details-modal">
+        <button class="close-button" type="button" data-close="bookDetailsModal" data-i18n-aria="close">×</button>
+        <div id="bookDetailsContent"></div>
+    </div>
+</div>
+
+<!-- MODAL — REGISTRAR LEITURA / FINALIZAR SESSÃO / EDITAR SESSÃO -->
+<div id="readingFormModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+        <button class="close-button" type="button" data-close="readingFormModal" data-i18n-aria="close">×</button>
+        <div id="readingFormContent"></div>
+    </div>
+</div>
+
+<!-- MODAL — RESUMO DA SESSÃO / CONCLUSÃO DO LIVRO -->
+<div id="celebrationModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal celebration-modal">
+        <button class="close-button" type="button" data-close="celebrationModal" data-i18n-aria="close">×</button>
+        <div id="celebrationContent"></div>
+    </div>
+</div>
+
+<!-- MODAL — CONFIRMAÇÕES -->
+<div id="dialogModal" class="modal-overlay dialog-overlay" role="alertdialog" aria-modal="true" aria-labelledby="dialogTitle">
+    <div class="modal dialog-modal">
+        <h2 id="dialogTitle"></h2>
+        <div id="dialogMessage" class="dialog-message"></div>
+        <div id="dialogActions" class="dialog-actions"></div>
+    </div>
+</div>
+
+<!-- MENU DE AÇÕES DO LIVRO -->
+<div id="bookMenu" class="book-menu hidden" role="menu"></div>
+
+<!-- =====================================================
+     MODAL — CONFIGURAÇÕES
+===================================================== -->
+<div id="accountModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="accountModalTitle">
+    <div class="modal settings-modal set2">
+        <button id="closeAccountModal" class="close-button" type="button" data-i18n-aria="close">×</button>
+
+        <aside class="settings-nav">
+            <div class="settings-user">
+                <div class="settings-avatar" id="settingsAvatar">?</div>
+                <div class="settings-user-text">
+                    <strong id="settingsUserName">—</strong>
+                    <span id="settingsUserEmail">—</span>
+                </div>
+            </div>
+            <nav class="settings-tabs" role="tablist">
+                <button type="button" class="settings-tab active" data-panel="profile"><svg><use href="#i-user"/></svg><span data-i18n="set.tab.account">Conta</span></button>
+                <button type="button" class="settings-tab" data-panel="appearance"><svg><use href="#i-palette"/></svg><span data-i18n="set.tab.prefs">Preferências</span></button>
+                <button type="button" class="settings-tab" data-panel="reading"><svg><use href="#i-clock"/></svg><span data-i18n="set.tab.reading">Leitura</span></button>
+                <button type="button" class="settings-tab" data-panel="security"><svg><use href="#i-shield"/></svg><span data-i18n="set.tab.security">Segurança</span></button>
+                <button type="button" class="settings-tab" data-panel="data"><svg><use href="#i-database"/></svg><span data-i18n="set.tab.data">Seus dados</span></button>
+            </nav>
+            <span class="set-saved" id="setSaved" aria-live="polite"><svg><use href="#i-check"/></svg><span data-i18n="set.saved">Salvo</span></span>
+        </aside>
+
+        <div class="settings-content">
+
+            <!-- CONTA -->
+            <section class="settings-panel" data-panel="profile">
+                <h2 id="accountModalTitle" class="set-title" data-i18n="set.tab.account">Conta</h2>
+
+                <div class="id-card">
+                    <canvas class="id-card-threads" aria-hidden="true"></canvas>
+                    <div class="id-card-top">
+                        <div class="settings-avatar big" id="profileAvatarPreview">?</div>
+                        <div class="id-card-who">
+                            <strong id="idCardName">—</strong>
+                            <span id="idCardEmail">—</span>
+                        </div>
+                        <span class="id-card-brand">TRAMA</span>
+                    </div>
+                    <div class="id-card-stats" id="idCardStats"></div>
+                    <div class="id-card-foot">
+                        <div><span data-i18n="set.profile.memberSince">Membro desde</span><strong id="profileMemberSince">—</strong></div>
+                        <div><span data-i18n="set.profile.lastLogin">Último acesso</span><strong id="profileLastLogin">—</strong></div>
+                    </div>
+                </div>
+
+                <form id="profileForm" class="set-group" novalidate>
+                    <div class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.profile.name">Nome de exibição</strong><small data-i18n="set.profile.nameHint">Aparece na saudação do topo e no seu avatar.</small></div>
+                        <input type="text" id="profileName" class="set-input" maxlength="40" data-i18n-placeholder="set.profile.namePh" autocomplete="off">
+                    </div>
+                    <div class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.profile.color">Cor do avatar</strong></div>
+                        <div class="color-swatches" id="avatarColorPicker">
+                            <button type="button" data-color="sky" class="swatch" style="--sw: linear-gradient(135deg,#c99a62,#7d4a26)" aria-label="Sépia"></button>
+                            <button type="button" data-color="ocean" class="swatch" style="--sw: linear-gradient(135deg,#7f8fa6,#2f3a4f)" aria-label="Tinta"></button>
+                            <button type="button" data-color="mint" class="swatch" style="--sw: linear-gradient(135deg,#aab27a,#56632e)" aria-label="Oliva"></button>
+                            <button type="button" data-color="lavender" class="swatch" style="--sw: linear-gradient(135deg,#b893a8,#5e3a55)" aria-label="Ameixa"></button>
+                            <button type="button" data-color="sunset" class="swatch" style="--sw: linear-gradient(135deg,#c97a62,#6e2420)" aria-label="Vinho"></button>
+                            <button type="button" data-color="graphite" class="swatch" style="--sw: linear-gradient(135deg,#a69a86,#3d342a)" aria-label="Grafite"></button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- PREFERÊNCIAS -->
+            <section class="settings-panel hidden" data-panel="appearance">
+                <h2 class="set-title" data-i18n="set.tab.prefs">Preferências</h2>
+
+                <span class="set-label" data-i18n="set.appearance.title">Aparência</span>
+                <div class="theme-options" id="themeOptions">
+                    <button type="button" class="theme-card" data-theme-option="light">
+                        <span class="theme-preview light"><i></i><i></i><i></i></span>
+                        <span class="theme-name"><svg><use href="#i-sun"/></svg><span data-i18n="set.theme.light">Claro</span></span>
+                    </button>
+                    <button type="button" class="theme-card" data-theme-option="dark">
+                        <span class="theme-preview dark"><i></i><i></i><i></i></span>
+                        <span class="theme-name"><svg><use href="#i-moon"/></svg><span data-i18n="set.theme.dark">Escuro</span></span>
+                    </button>
+                    <button type="button" class="theme-card" data-theme-option="system">
+                        <span class="theme-preview system"><i></i><i></i><i></i></span>
+                        <span class="theme-name"><svg><use href="#i-monitor"/></svg><span data-i18n="set.theme.system">Automático</span></span>
+                    </button>
+                </div>
+
+                <div class="set-group">
+                    <div class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.language.title">Idioma</strong></div>
+                        <div class="set-seg" id="languageOptions">
+                            <button type="button" data-lang-option="pt">PT</button>
+                            <button type="button" data-lang-option="en">EN</button>
+                            <button type="button" data-lang-option="es">ES</button>
+                        </div>
+                    </div>
+                    <div class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.start.title">Abrir o Trama em</strong><small data-i18n="set.start.hint">A aba que aparece quando você entra.</small></div>
+                        <select id="startPageSelect" class="set-select" data-i18n-aria="set.start.title">
+                            <option value="last" data-i18n="set.start.last">Onde parei</option>
+                            <option value="livrosPage" data-i18n="nav.books">Livros</option>
+                            <option value="statsPage" data-i18n="nav.stats">Estatísticas</option>
+                            <option value="achievementsPage" data-i18n="ach.eyebrowShort">Conquistas</option>
+                        </select>
+                    </div>
+                    <div class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.motion">Reduzir animações</strong><small data-i18n="set.motionHint">Deixa a interface mais estática.</small></div>
+                        <label class="switch"><input type="checkbox" id="reduceMotionToggle"><span></span></label>
+                    </div>
+                </div>
+
+                <span class="set-label" data-i18n="set.shortcuts.title">Atalhos de teclado</span>
+                <div class="keys-grid">
+                    <div><kbd>1</kbd><span data-i18n="nav.books">Livros</span></div>
+                    <div><kbd>2</kbd><span data-i18n="nav.stats">Estatísticas</span></div>
+                    <div><kbd>3</kbd><span data-i18n="ach.eyebrowShort">Conquistas</span></div>
+                    <div><kbd>N</kbd><span data-i18n="sc.newBook">Novo livro</span></div>
+                    <div><kbd>/</kbd><span data-i18n="sc.searchShort">Buscar</span></div>
+                    <div><kbd>,</kbd><span data-i18n="sc.settingsShort">Configurações</span></div>
+                </div>
+            </section>
+
+            <!-- LEITURA -->
+            <section class="settings-panel hidden" data-panel="reading">
+                <h2 class="set-title" data-i18n="set.reading.title">Leitura</h2>
+
+                <span class="set-label" data-i18n="set.reading.sessionGoal">Meta de tempo por sessão</span>
+                <div class="set-seg wide" id="sessionGoalOptions">
+                    <button type="button" data-minutes="0" data-i18n="set.reading.off">Desligada</button>
+                    <button type="button" data-minutes="15">15</button>
+                    <button type="button" data-minutes="25">25</button>
+                    <button type="button" data-minutes="45">45</button>
+                    <button type="button" data-minutes="60">60</button>
+                </div>
+                <small class="set-hint" data-i18n="set.reading.sessionGoalHint">Quando o cronômetro chegar lá, você recebe um aviso.</small>
+
+                <div class="set-group">
+                    <div class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.reading.sound">Tocar um som ao atingir a meta</strong>
+                            <button type="button" class="inline-link" id="testSoundButton"><svg><use href="#i-volume"/></svg><span data-i18n="set.reading.test">Ouvir som</span></button></div>
+                        <label class="switch"><input type="checkbox" id="soundToggle"><span></span></label>
+                    </div>
+                    <div class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.reading.tabTitle">Mostrar o cronômetro no título da aba</strong><small data-i18n="set.reading.tabTitleHint">Assim você acompanha o tempo mesmo em outra aba.</small></div>
+                        <label class="switch"><input type="checkbox" id="tabTitleToggle"><span></span></label>
+                    </div>
+                    <div class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.reading.defaultGoal">Meta diária padrão para livros novos</strong><small data-i18n="set.reading.defaultGoalHint">Preenchida automaticamente ao adicionar um livro.</small></div>
+                        <div class="set-unit"><input type="number" id="defaultDailyGoal" class="set-input small" min="1" max="2000" placeholder="—"><span data-i18n="lib.goal.pages">páginas</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SEGURANÇA -->
+            <section class="settings-panel hidden" data-panel="security">
+                <h2 class="set-title" data-i18n="set.security.title">Segurança</h2>
+
+                <div class="set-group">
+                    <details class="set-acc">
+                        <summary class="set-row">
+                            <div class="set-row-text"><strong data-i18n="set.security.passwordShort">Senha</strong><small>••••••••••</small></div>
+                            <span class="set-chev" data-i18n="set.change">Alterar</span>
+                        </summary>
+                        <form id="accountForm" class="set-acc-body" novalidate>
+                            <input type="password" id="accountCurrentPassword" class="set-input" autocomplete="current-password" maxlength="72" data-i18n-placeholder="field.currentPassword" data-i18n-aria="field.currentPassword">
+                            <input type="password" id="accountNewPassword" class="set-input" autocomplete="new-password" data-i18n-placeholder="field.newPassword" data-i18n-aria="field.newPassword">
+                            <div id="accountPasswordStrength" class="password-strength hidden">
+                                <div class="password-strength-bar"><div id="accountPasswordStrengthFill" class="password-strength-fill"></div></div>
+                                <span id="accountPasswordStrengthLabel" class="password-strength-label"></span>
+                            </div>
+                            <input type="password" id="accountConfirmPassword" class="set-input" autocomplete="new-password" data-i18n-placeholder="field.confirmNewPassword" data-i18n-aria="field.confirmNewPassword">
+                            <p id="accountFormError" class="error-message" role="alert"></p>
+                            <p id="accountFormInfo" class="info-message" role="status"></p>
+                            <button type="submit" class="primary-button" id="saveAccountButton" data-i18n="btn.savePassword">Salvar nova senha</button>
+                        </form>
+                    </details>
+                    <details class="set-acc">
+                        <summary class="set-row">
+                            <div class="set-row-text"><strong data-i18n="set.security.emailShort">E-mail</strong><small id="accountCurrentEmail">—</small></div>
+                            <span class="set-chev" data-i18n="set.change">Alterar</span>
+                        </summary>
+                        <form id="emailForm" class="set-acc-body" novalidate>
+                            <input type="email" id="newEmailInput" class="set-input" autocomplete="email" data-i18n-placeholder="set.security.newEmail" data-i18n-aria="set.security.newEmail">
+                            <input type="password" id="emailCurrentPassword" class="set-input" autocomplete="current-password" maxlength="72" data-i18n-placeholder="field.currentPassword" data-i18n-aria="field.currentPassword">
+                            <p id="emailFormError" class="error-message" role="alert"></p>
+                            <p id="emailFormInfo" class="info-message" role="status"></p>
+                            <button type="submit" class="primary-button" id="saveEmailButton" data-i18n="set.security.saveEmail">Enviar confirmação</button>
+                        </form>
+                    </details>
+                    <div class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.security.autolock">Sair automaticamente</strong><small data-i18n="set.security.autolockShort">Depois de um tempo sem uso neste aparelho.</small></div>
+                        <select id="autoLockSelect" class="set-select" data-i18n-aria="set.security.autolock">
+                            <option value="0" data-i18n="set.security.never">Nunca</option>
+                            <option value="15">15 min</option>
+                            <option value="30">30 min</option>
+                            <option value="60">1 h</option>
+                            <option value="240">4 h</option>
+                        </select>
+                    </div>
+                    <div class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.security.lastAccess">Último acesso</strong><small id="securityLastAccess">—</small></div>
+                    </div>
+                </div>
+
+                <div class="set-actions">
+                    <button type="button" class="set-ghost" id="accountLogoutButton"><svg><use href="#i-logout"/></svg><span data-i18n="set.security.logout">Sair desta conta</span></button>
+                    <button type="button" class="set-ghost" id="logoutAllButton"><svg><use href="#i-shield"/></svg><span data-i18n="set.security.logoutAll">Sair de todos os dispositivos</span></button>
+                </div>
+            </section>
+
+            <!-- DADOS -->
+            <section class="settings-panel hidden" data-panel="data">
+                <h2 class="set-title" data-i18n="set.data.title">Seus dados</h2>
+
+                <div class="data-meter" id="dataSummary"></div>
+
+                <div class="export-tiles">
+                    <button type="button" class="export-tile" id="exportJsonButton">
+                        <span class="export-ext">.json</span>
+                        <strong data-i18n="set.data.backupTitle">Backup completo</strong>
+                        <small data-i18n="set.data.backupDesc">Filmes, séries, livros, sessões e preferências.</small>
+                        <svg><use href="#i-download"/></svg>
+                    </button>
+                    <button type="button" class="export-tile" id="exportCsvButton">
+                        <span class="export-ext">.csv</span>
+                        <strong data-i18n="set.data.csvTitle">Planilha de filmes</strong>
+                        <small data-i18n="set.data.csvDesc">Abre no Excel ou Google Planilhas.</small>
+                        <svg><use href="#i-download"/></svg>
+                    </button>
+                </div>
+
+                <details class="set-acc danger">
+                    <summary class="set-row">
+                        <div class="set-row-text"><strong data-i18n="set.data.deleteAll">Apagar todos os meus dados</strong><small data-i18n="set.data.deleteShort">Não pode ser desfeito.</small></div>
+                        <span class="set-chev" data-i18n="set.data.danger">Zona de perigo</span>
+                    </summary>
+                    <div class="set-acc-body">
+                        <p class="set-hint" data-i18n="set.data.deleteHint">Remove todos os filmes, livros e sessões de leitura. Isso não pode ser desfeito.</p>
+                        <label class="set-confirm"><span id="deleteConfirmLabel">Digite APAGAR para confirmar</span>
+                            <input type="text" id="deleteConfirmInput" class="set-input" autocomplete="off"></label>
+                        <button type="button" class="danger-button" id="deleteAllButton" disabled data-i18n="set.data.deleteButton">Apagar tudo</button>
+                    </div>
+                </details>
+            </section>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+
+
+<!-- CARTÃO DO LIVRO -->
+<div id="shareCardModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="shareCardTitle">
+    <div class="modal share-card-modal">
+        <button class="close-button" type="button" data-close="shareCardModal" data-i18n-aria="close">×</button>
+        <p class="eyebrow" data-i18n="card.eyebrow">COMPARTILHE SUA LEITURA</p>
+        <h2 id="shareCardTitle" data-i18n="card.title">Cartão do livro</h2>
+        <div class="segmented small card-format" id="cardFormat">
+            <button type="button" data-format="stories" data-i18n="card.stories">Stories</button>
+            <button type="button" data-format="feed" data-i18n="card.feed">Feed</button>
+        </div>
+        <div class="card-preview" data-format="stories">
+            <canvas id="shareCardCanvas" width="1080" height="1920"></canvas>
+            <span class="card-loading" data-i18n="card.generating">Gerando cartão…</span>
+        </div>
+        <div class="card-actions">
+            <button type="button" class="secondary-button with-icon hidden" id="cardShare"><svg><use href="#i-share"/></svg><span data-i18n="card.share">Compartilhar</span></button>
+            <button type="button" class="primary-button with-icon" id="cardDownload"><svg><use href="#i-download"/></svg><span data-i18n="card.download">Baixar imagem</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Aviso de conquista desbloqueada -->
+<div id="achToast" class="ach-toast hidden" role="status" aria-live="polite"></div>
+
+<!-- MODO FOCO -->
+<div id="focusMode" class="focus-mode hidden" role="dialog" aria-modal="true" data-i18n-aria="focus.open"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+<script src="books.js"></script>
+<script src="card.js"></script>
+<script src="achievements.js"></script>
+
+</body>
+</html>
