@@ -4236,3 +4236,99 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .bf2 input:focus-visible, .bf2 .bk3d:focus-visible { outline: none; }
 
 .spine.slim .spine-author { display: none; }
+
+/* =====================================================
+   MOVER LIVROS — arquivo de fichas que surge ao arrastar
+===================================================== */
+.spine, .lib-cover-btn { touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+body.book-dragging, body.book-dragging * { cursor: grabbing !important; -webkit-user-select: none; user-select: none; }
+.spine { cursor: grab; }
+.spine.drag-source, .lib-cover-btn.drag-source { opacity: .22; transform: none !important; filter: grayscale(.6); }
+body.book-dragging .spine-peek { display: none; }
+
+.drag-ghost {
+    position: fixed; left: 0; top: 0; z-index: 900; pointer-events: none;
+    will-change: transform; transition: transform .06s linear;
+    filter: drop-shadow(0 22px 22px rgba(40,24,10,.45));
+}
+.drag-ghost .spine { width: 100%; height: 100%; animation: none !important; transform: none !important; opacity: 1 !important; filter: none !important; }
+.drag-ghost .spine-peek { display: none; }
+.ghost-book {
+    width: 100%; height: 100%; border-radius: 3px 8px 8px 3px; display: grid; place-items: center; padding: 8px; text-align: center;
+    background: var(--leather-grain), linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,0) 10%), var(--bind); color: var(--ink);
+}
+.ghost-book strong { font-family: var(--display); font-size: 13px; line-height: 1.1; }
+
+/* as abas também recebem livros */
+body.book-dragging #libraryTabs .library-tab:not([data-tab="all"]):not(.here) {
+    outline: 1.5px dashed var(--border-hover); outline-offset: -3px; border-radius: 10px;
+}
+#libraryTabs .library-tab.drop-over { background: var(--accent-soft) !important; color: var(--accent) !important; outline-color: var(--accent) !important; transform: translateY(-2px); }
+body.book-dragging #libraryTabs .library-tab.here { opacity: .45; }
+#libraryTabs .library-tab.bump .tab-count { animation: countBump .6s cubic-bezier(.2,1.6,.4,1); }
+@keyframes countBump { 40% { transform: scale(1.8); color: var(--accent); } }
+
+/* o arquivo */
+.shelf-dock {
+    position: fixed; left: 50%; bottom: 18px; z-index: 850;
+    transform: translate(-50%, calc(100% + 40px)); opacity: 0; pointer-events: none;
+    transition: transform .45s cubic-bezier(.2,1.1,.3,1), opacity .25s;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.shelf-dock.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+.dock-title {
+    font-family: var(--display); font-style: italic; font-size: 17px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border); padding: 5px 16px; border-radius: 999px;
+    box-shadow: var(--shadow-soft); max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dock-cabinet {
+    display: grid; grid-template-columns: repeat(4, 150px); gap: 8px; padding: 10px;
+    border-radius: 10px;
+    background: var(--leather-grain), linear-gradient(180deg, #7a5530, #5a3c20);
+    box-shadow: inset 0 2px 0 rgba(255,230,190,.18), inset 0 -3px 0 rgba(0,0,0,.25), 0 26px 50px -18px rgba(40,24,10,.75);
+}
+.drawer {
+    position: relative; height: 86px; border-radius: 4px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    background:
+        repeating-linear-gradient(90deg, rgba(0,0,0,.04) 0 2px, transparent 2px 9px),
+        linear-gradient(180deg, #b48a57, #946a3c);
+    box-shadow: inset 0 1px 0 rgba(255,235,200,.35), inset 0 -2px 0 rgba(0,0,0,.2), 0 2px 0 rgba(0,0,0,.25);
+    transition: transform .3s cubic-bezier(.2,1.2,.3,1), box-shadow .3s, filter .2s;
+}
+/* fundo escuro da gaveta, visível quando ela "abre" */
+.drawer::before {
+    content: ""; position: absolute; left: 6px; right: 6px; top: -1px; height: 0; border-radius: 3px 3px 0 0;
+    background: linear-gradient(180deg, #2a1a0d, #3c2614); transition: height .3s cubic-bezier(.2,1.2,.3,1);
+}
+.drawer-plate {
+    position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 3px;
+    background: linear-gradient(180deg, #f1dcae, #c9a063 60%, #e4c58c);
+    box-shadow: inset 0 0 0 1px rgba(90,60,20,.45), 0 1px 1px rgba(0,0,0,.3);
+    color: #3a2516; font-family: var(--display); font-size: 15px; white-space: nowrap;
+}
+.drawer-plate b { font-weight: 700; }
+.drawer-plate svg { width: 13px; height: 13px; }
+.drawer-knob {
+    width: 22px; height: 9px; border-radius: 0 0 10px 10px;
+    background: linear-gradient(180deg, #e9cf98, #a37a3c); box-shadow: 0 2px 2px rgba(0,0,0,.35);
+}
+.drawer.here { filter: saturate(.3) brightness(.85); opacity: .55; }
+.drawer.here::after { content: "•"; position: absolute; top: 4px; right: 8px; color: rgba(255,240,210,.7); }
+.drawer.drop-over { transform: translateY(14px) scale(1.04); box-shadow: inset 0 1px 0 rgba(255,235,200,.35), 0 10px 18px -6px rgba(0,0,0,.5); }
+.drawer.drop-over::before { height: 14px; top: -14px; }
+.drawer.drop-over .drawer-plate { box-shadow: inset 0 0 0 1px rgba(90,60,20,.45), 0 0 16px rgba(242,217,162,.85); }
+.drawer.swallow { animation: drawerShut .65s cubic-bezier(.2,1.4,.4,1); }
+@keyframes drawerShut { 0% { transform: translateY(14px) scale(1.04); } 45% { transform: translateY(-4px) scale(.98); } 100% { transform: none; } }
+
+.shelf-hint { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12.5px; color: var(--muted); font-style: italic; }
+.shelf-hint svg { width: 14px; height: 14px; flex-shrink: 0; opacity: .7; }
+.shelf-hint .hint-touch { display: none; }
+@media (hover: none) { .shelf-hint .hint-mouse { display: none; } .shelf-hint .hint-touch { display: inline; } }
+
+@media (max-width: 760px) {
+    .shelf-dock { bottom: 96px; width: calc(100vw - 24px); }
+    .dock-cabinet { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+    .drawer { height: 70px; }
+    .drawer-plate { font-size: 14px; }
+}

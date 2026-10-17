@@ -578,7 +578,8 @@ function renderLibraryList() {
     const enter = shelfKey !== lastShelfKey;
     lastShelfKey = shelfKey;
     libraryList.innerHTML = resultsInfo + pickBar + (view === "grid"
-        ? `<div class="bookshelf${enter ? " enter" : ""}" role="list">${list.map(renderSpine).join("")}<span class="bookend" aria-hidden="true"></span></div>`
+        ? `<div class="bookshelf${enter ? " enter" : ""}" role="list">${list.map(renderSpine).join("")}<span class="bookend" aria-hidden="true"></span></div>
+           <p class="shelf-hint"><svg aria-hidden="true"><use href="#i-grid"/></svg><span class="hint-mouse">${t("move.hintMouse")}</span><span class="hint-touch">${t("move.hintTouch")}</span></p>`
         : list.map(renderBookCard).join(""));
 }
 
@@ -600,10 +601,11 @@ function renderEmptyState() {
         case "want":
             return emptyBlock("🔖", t("lib.empty.want"), t("lib.empty.wantDesc"), addBtn("lib.empty.addWant", "want"));
         case "paused":
-            return emptyBlock("⏸", t("lib.empty.paused"), t("lib.empty.pausedDesc"), "");
+            return emptyBlock("⏸", t("lib.empty.paused"), t("lib.empty.pausedDesc") + " " + t("move.emptyHint"), "");
         case "finished":
             return emptyBlock("🏁", t("lib.empty.finished"), t("lib.empty.finishedDesc"),
-                counts.reading ? `<button type="button" class="secondary-button" data-action="go-tab" data-tab="reading">${t("lib.empty.seeReading")}</button>` : "");
+                addBtn("move.addRead", "finished") +
+                (counts.reading ? `<button type="button" class="secondary-button" data-action="go-tab" data-tab="reading">${t("lib.empty.seeReading")}</button>` : ""));
         default:
             return emptyBlock("📚", t("lib.empty.all"), t("lib.empty.allDesc"), addBtn("lib.empty.addBook", "reading"));
     }
@@ -1158,6 +1160,7 @@ document.addEventListener("click", event => {
         "log-reading": () => openLogForm(id),
         "start-book": () => startBookFromWant(id),
         "resume-book": () => resumeBook(id),
+        "move-want": () => moveBookTo(id, "want"),
         "pause-book": () => pauseBook(id),
         "finish-book": () => finishBook(id),
         "reopen-book": () => reopenBook(id),
@@ -1207,11 +1210,14 @@ function openBookMenu(bookId, anchor) {
         items.push(item("log-reading", "pen", "books.register"));
         items.push(item("pause-book", "pause", "lib.menu.pause"));
         items.push(item("finish-book", "flag", "lib.menu.finish"));
+        items.push(item("move-want", "bookmark", "lib.menu.moveWant"));
     } else if (book.status === "paused") {
         items.push(item("resume-book", "play", "lib.action.resumeBook"));
         items.push(item("finish-book", "flag", "lib.menu.finish"));
+        items.push(item("move-want", "bookmark", "lib.menu.moveWant"));
     } else if (book.status === "want") {
         items.push(item("start-book", "play", "lib.action.startBook"));
+        items.push(item("finish-book", "flag", "lib.menu.alreadyRead"));
     } else if (book.status === "finished") {
         items.push(item("share-card", "share", "card.create"));
         items.push(item("review", "star", "lib.menu.review"));
@@ -3508,3 +3514,188 @@ libraryList.addEventListener("mouseover", event => {
     const shift = Math.max(s.left + 8 - (center - half), Math.min(0, s.right - 8 - (center + half)));
     peek.style.setProperty("--shift", `${Math.round(shift)}px`);
 });
+
+
+// =====================================================
+// MOVER LIVROS ENTRE CATEGORIAS
+// Arraste a lombada (ou a capa, na lista) até uma gaveta do arquivo
+// ou até uma das abas. No celular: toque e segure.
+// =====================================================
+const STATUS_TABS = ["reading", "want", "paused", "finished"];
+
+async function moveBookTo(bookId, status) {
+    const book = bookById(bookId);
+    if (!book || !STATUS_TABS.includes(status) || book.status === status) return false;
+    const from = book.status;
+    let saved = null;
+
+    if (status === "finished") { await finishBook(bookId); return bookById(bookId)?.status === "finished"; }
+    if (status === "reading") {
+        if (from === "want") await startBookFromWant(bookId);
+        else if (from === "paused") await resumeBook(bookId);
+        else if (from === "finished") await reopenBook(bookId);
+        return bookById(bookId)?.status === "reading";
+    }
+    if (blockIfActiveSession(bookId)) return false;
+    if (status === "paused") {
+        if (from === "reading") { await pauseBook(bookId); return bookById(bookId)?.status === "paused"; }
+        saved = await changeStatus(bookId, "paused", "status", { started_at: book.started_at || todayISO() });
+    } else if (status === "want") {
+        saved = await changeStatus(bookId, "want", "status", { priority: book.priority || 2 });
+    }
+    if (saved) showToast(t("move.toast", { title: saved.title, place: t(`lib.tab.${status}`) }), "success");
+    return Boolean(saved);
+}
+
+const dragState = { src: null, id: null, active: false, ghost: null, timer: null, x0: 0, y0: 0, dx: 0, dy: 0, lastX: 0, target: null, justDragged: false, type: "mouse" };
+const shelfDock = $("shelfDock");
+
+function dropTargetAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const target = el?.closest("[data-drop-status], #libraryTabs .library-tab[data-tab]");
+    if (!target) return null;
+    const status = target.dataset.dropStatus || target.dataset.tab;
+    const book = bookById(dragState.id);
+    if (!STATUS_TABS.includes(status) || !book || book.status === status) return null;
+    return { el: target, status };
+}
+
+function beginBookDrag(x, y) {
+    const book = bookById(dragState.id);
+    if (!book || !dragState.src) return;
+    dragState.active = true;
+    const r = dragState.src.getBoundingClientRect();
+    dragState.dx = x - r.left; dragState.dy = y - r.top;
+    dragState.origin = r;
+
+    const ghost = document.createElement("div");
+    ghost.className = "drag-ghost";
+    if (dragState.src.classList.contains("spine")) {
+        const clone = dragState.src.cloneNode(true);
+        clone.classList.remove("pulled", "live");
+        ghost.append(clone);
+        ghost.style.cssText = dragState.src.closest(".spine-slot").getAttribute("style") || "";
+    } else {
+        const { bg, ink } = bookBinding(book);
+        ghost.innerHTML = `<div class="ghost-book" style="--bind:${bg};--ink:${ink}"><strong>${escapeHTML(book.title)}</strong></div>`;
+    }
+    ghost.style.width = `${r.width}px`;
+    ghost.style.height = `${r.height}px`;
+    document.body.append(ghost);
+    dragState.ghost = ghost;
+    moveGhost(x, y);
+
+    dragState.src.classList.add("drag-source");
+    document.body.classList.add("book-dragging");
+    shelfDock.querySelectorAll("[data-drop-status]").forEach(d => d.classList.toggle("here", d.dataset.dropStatus === book.status));
+    document.querySelectorAll("#libraryTabs .library-tab").forEach(tab => tab.classList.toggle("here", tab.dataset.tab === book.status));
+    $("shelfDockTitle").textContent = t("move.dockTitle", { title: book.title });
+    shelfDock.classList.add("show");
+    shelfDock.setAttribute("aria-hidden", "false");
+    if (dragState.type === "touch") navigator.vibrate?.(12);
+}
+
+function moveGhost(x, y) {
+    const g = dragState.ghost;
+    if (!g) return;
+    const tilt = Math.max(-14, Math.min(14, (x - dragState.lastX) * 1.2));
+    dragState.lastX = x;
+    g.style.transform = `translate(${x - dragState.dx}px, ${y - dragState.dy}px) rotate(${tilt}deg) scale(1.06)`;
+}
+
+function setDropTarget(target) {
+    if (dragState.target?.el === target?.el) return;
+    dragState.target?.el.classList.remove("drop-over");
+    dragState.target = target;
+    target?.el.classList.add("drop-over");
+}
+
+function cleanupDrag() {
+    clearTimeout(dragState.timer);
+    dragState.src?.classList.remove("drag-source");
+    dragState.target?.el.classList.remove("drop-over");
+    document.body.classList.remove("book-dragging");
+    shelfDock.classList.remove("show");
+    shelfDock.setAttribute("aria-hidden", "true");
+    document.querySelectorAll("#libraryTabs .library-tab.here, #shelfDock .here").forEach(el => el.classList.remove("here"));
+    Object.assign(dragState, { src: null, active: false, target: null, timer: null });
+}
+
+async function endBookDrag(x, y) {
+    const ghost = dragState.ghost;
+    const id = dragState.id;
+    const target = dropTargetAt(x, y);
+    dragState.ghost = null;
+    dragState.justDragged = true;
+    setTimeout(() => { dragState.justDragged = false; }, 50);
+
+    if (target) {
+        const tr = target.el.getBoundingClientRect();
+        target.el.classList.add("swallow");
+        setTimeout(() => target.el.classList.remove("swallow"), 700);
+        ghost.style.transition = "transform .38s cubic-bezier(.5,0,.75,0), opacity .38s";
+        ghost.style.transform = `translate(${tr.left + tr.width / 2 - dragState.dx}px, ${tr.top + tr.height / 2 - dragState.dy}px) rotate(0deg) scale(.15)`;
+        ghost.style.opacity = "0";
+        setTimeout(() => ghost.remove(), 400);
+        cleanupDrag();
+        const ok = await moveBookTo(id, target.status);
+        if (ok) {
+            const tab = document.querySelector(`#libraryTabs .library-tab[data-tab="${target.status}"]`);
+            tab?.classList.add("bump");
+            setTimeout(() => tab?.classList.remove("bump"), 700);
+        }
+    } else {
+        // volta para a prateleira
+        const o = dragState.origin;
+        ghost.style.transition = "transform .34s cubic-bezier(.2,.8,.2,1)";
+        ghost.style.transform = `translate(${o.left}px, ${o.top}px) rotate(0deg) scale(1)`;
+        setTimeout(() => ghost.remove(), 360);
+        cleanupDrag();
+    }
+}
+
+libraryList.addEventListener("pointerdown", event => {
+    const src = event.target.closest(".spine, .lib-cover-btn");
+    if (!src || event.button !== 0 || !libraryReady) return;
+    Object.assign(dragState, { src, id: Number(src.dataset.id), x0: event.clientX, y0: event.clientY, lastX: event.clientX, type: event.pointerType, active: false });
+    if (event.pointerType === "touch") {
+        dragState.timer = setTimeout(() => beginBookDrag(dragState.x0, dragState.y0), 380);
+    }
+});
+
+document.addEventListener("pointermove", event => {
+    if (!dragState.src) return;
+    if (!dragState.active) {
+        const dist = Math.hypot(event.clientX - dragState.x0, event.clientY - dragState.y0);
+        if (dragState.type === "touch") { if (dist > 10) { clearTimeout(dragState.timer); dragState.src = null; } return; }
+        if (dist > 7) beginBookDrag(event.clientX, event.clientY); else return;
+    }
+    event.preventDefault();
+    moveGhost(event.clientX, event.clientY);
+    setDropTarget(dropTargetAt(event.clientX, event.clientY));
+});
+
+document.addEventListener("pointerup", event => {
+    if (!dragState.src) return;
+    if (dragState.active) endBookDrag(event.clientX, event.clientY);
+    else { clearTimeout(dragState.timer); dragState.src = null; }
+});
+document.addEventListener("pointercancel", () => {
+    if (dragState.active && dragState.ghost) { dragState.ghost.remove(); dragState.ghost = null; }
+    cleanupDrag();
+});
+// enquanto arrasta no celular, a página não rola
+document.addEventListener("touchmove", event => { if (dragState.active) event.preventDefault(); }, { passive: false });
+// depois de arrastar, o "clique" de soltar não abre o livro
+document.addEventListener("click", event => {
+    if (dragState.justDragged) { event.stopImmediatePropagation(); event.preventDefault(); }
+}, true);
+libraryList.addEventListener("dragstart", event => event.preventDefault());
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && dragState.active) {
+        event.stopImmediatePropagation();
+        const o = dragState.origin;
+        if (dragState.ghost) { dragState.ghost.style.transition = "transform .3s"; dragState.ghost.style.transform = `translate(${o.left}px, ${o.top}px)`; const g = dragState.ghost; setTimeout(() => g.remove(), 320); dragState.ghost = null; }
+        cleanupDrag();
+    }
+}, true);

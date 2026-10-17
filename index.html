@@ -884,6 +884,17 @@
     </div>
 </div>
 
+<!-- Arquivo de fichas: aparece ao arrastar um livro -->
+<div id="shelfDock" class="shelf-dock" aria-hidden="true">
+    <p class="dock-title" id="shelfDockTitle"></p>
+    <div class="dock-cabinet">
+        <div class="drawer" data-drop-status="reading"><span class="drawer-plate"><svg><use href="#i-play"/></svg><b data-i18n="lib.tab.reading">Em andamento</b></span><i class="drawer-knob"></i></div>
+        <div class="drawer" data-drop-status="want"><span class="drawer-plate"><svg><use href="#i-bookmark"/></svg><b data-i18n="lib.tab.want">Quero ler</b></span><i class="drawer-knob"></i></div>
+        <div class="drawer" data-drop-status="paused"><span class="drawer-plate"><svg><use href="#i-pause"/></svg><b data-i18n="lib.tab.paused">Pausados</b></span><i class="drawer-knob"></i></div>
+        <div class="drawer" data-drop-status="finished"><span class="drawer-plate"><svg><use href="#i-flag"/></svg><b data-i18n="lib.tab.finished">Concluídos</b></span><i class="drawer-knob"></i></div>
+    </div>
+</div>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 
